@@ -1,0 +1,39 @@
+[package]
+name = "reviewer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+async-trait = "0.1.92"
+base64 = "0.23.1"
+block2 = "0.6"
+chrono = { version = "0.4.45", features = ["serde"] }
+comrak = { version = "0.59.0", default-features = false }
+dioxus = { version = "0.7.10", features = ["desktop"] }
+dirs = "7.0.0"
+humantime = "2.4.0"
+humantime-serde = "1.1.1"
+libc = "0.2.191"
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSWindow", "NSView", "NSResponder", "NSGraphics", "block2"] }
+objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
+reqwest = { version = "0.13.5", features = ["json"] }
+rusqlite = { version = "0.41.1", features = ["bundled"] }
+semver = "1.0.28"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+syntect = { version = "5.3.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "parsing", "regex-fancy"] }
+thiserror = "2.0.21"
+tokio = { version = "1.54.1", features = ["full"] }
+tokio-util = "0.7.20"
+toml = "1.1.8"
+toml_edit = "0.25.17"
+tracing = "0.1.44"
+tracing-appender = "0.2.5"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+window-vibrancy = "0.8.1"
+
+[dev-dependencies]
+dioxus-ssr = "0.7.10"
+tempfile = "3.27.0"
