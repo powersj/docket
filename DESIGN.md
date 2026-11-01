@@ -3,7 +3,8 @@
 A macOS-only Rust desktop app for tracking GitHub PRs and producing
 Claude-assisted reviews that I edit and post myself.
 
-Status: design agreed 2026-10-31 (rev 2, after flow and UI reviews). Nothing implemented yet.
+Status: design agreed 2026-10-31 (rev 2, after flow and UI reviews). v1 implemented
+2026-11-01; see section 15 for where the build differs from this design.
 
 ---
 
@@ -641,3 +642,41 @@ authors = []
 validation, schema parsing, polish verification, bot-login normalization, and config parsing.
 GitHub calls go behind a trait with recorded fixtures. The agent runner is tested with a fake
 `claude` script emitting stream-json. Plus the sandbox integration test above.
+
+---
+
+## 15. Implementation notes
+
+Decisions made during the build that change or add to the design above.
+
+- **Skill invocation** (8.3, 8.5): prompts start with `/<skill>`, which the CLI expands
+  into the skill even with `--tools ""`. No Skill tool is granted, so the polish run
+  keeps `--tools ""` exactly.
+- **Git access** (8.1): the agent's cwd is the empty sandbox, so each `Bash(git <cmd>:*)`
+  rule also gets a `Bash(git -C <worktree> <cmd>:*)` form, and the prompt tells the agent
+  to use `git -C`.
+- **Env scrub** (8.1): `CLAUDE_CODE_OAUTH_TOKEN` and `ANTHROPIC_AUTH_TOKEN` are kept despite
+  matching `*_TOKEN`, or the CLI can't authenticate when it uses them.
+- **Flag verification** (8.1): verified against Claude Code 2.1.308, which is the built-in
+  `min_version`. `--max-turns` works but isn't listed in `--help`. Two opt-in tests
+  (`cargo test -- --ignored sandbox`) check that PR-supplied skills, hooks, CLAUDE.md and
+  `.mcp.json` don't take effect, and that git reads work while other commands are denied.
+- **Skill detection** (4): `plugin:skill` names are also found through
+  `~/.claude/plugins/installed_plugins.json`.
+- **Checkout** (8.2): the per-repo clone is `--bare` (plus `--filter=blob:none`). The gh
+  token reaches git through `GIT_CONFIG_*` env vars, never argv; repo hooks are disabled.
+- **Head moved** (7, 10.3): uses the REST compare API for commit titles. Comments on files
+  the new commits touch are marked "may be outdated".
+- **Storage** (11): `drafts` gains `merge_base` (to rebuild the hunk index after a restart)
+  and `summary_warning`; `prs` gains `reviewed_sha` and `reviewed_pending` (re-request
+  detection skips pending reviews).
+- **Retry** (7): a failed or interrupted polish resumes at Polishing on the existing draft
+  instead of re-running the review.
+- **Hide this author** (10.2): on a watch entry with an empty author list, the author is
+  added to `filters.bot_authors` instead, since the config can't express "all but one".
+- **Settings** (10.7): until the v1.1 Settings window, ⌘, reveals `config.toml` in Finder.
+- **Window chrome** (10.1): vibrancy must be applied after the webview exists (wry replaces
+  the content view). Dragging uses a native mouse-down monitor (`src/ui/drag.rs`) because
+  `drag()` from a Dioxus handler arrives too late; the page reports its drag regions.
+- **Orchestration**: `src/service.rs` (not in the crate layout) ties GitHub, store, repos and
+  agent runs to the UI state.
