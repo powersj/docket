@@ -1,9 +1,9 @@
-# Reviewer
+# Docket
 
 A macOS app for keeping track of the GitHub pull requests you care about and
 writing Claude-assisted reviews that you edit and post yourself.
 
-Reviewer shows what needs you right now, waits for your CI agentic reviewer to
+Docket shows what needs you right now, waits for your CI agentic reviewer to
 finish, runs Claude Code on the PR in a read-only sandbox, polishes the
 wording, and gives you a draft to edit. Nothing is posted until you confirm it.
 
@@ -22,22 +22,22 @@ wording, and gives you a draft to edit. Nothing is posted until you confirm it.
 
 ```sh
 make build
-./target/release/reviewer
+./target/release/docket
 ```
 
 | Command      | What it does                     |
 |--------------|----------------------------------|
-| `make build` | Builds `target/release/reviewer` |
+| `make build` | Builds `target/release/docket`   |
 | `make test`  | Runs the unit tests              |
 | `make lint`  | Runs every lint check            |
 | `make clean` | Removes build output             |
 
 ## Set up
 
-On first launch, Reviewer shows a welcome screen with an example config. Click
+On first launch, Docket shows a welcome screen with an example config. Click
 **Create example and reveal in Finder**, edit the file, then click **reload**.
 
-The config lives at `~/Library/Application Support/reviewer/config.toml`. The
+The config lives at `~/Library/Application Support/docket/config.toml`. The
 settings you'll usually change:
 
 ```toml
@@ -57,13 +57,13 @@ authors = []                      # empty means all authors
 ```
 
 Changes to the config are picked up on the next refresh (⌘R). If the file has
-an error, Reviewer keeps using the last good config and shows a banner with
+an error, Docket keeps using the last good config and shows a banner with
 the line number.
 
 The footer shows whether `gh` and `claude` are ready. Click either item to see
 what's wrong and how to fix it.
 
-## Using Reviewer
+## Using Docket
 
 The sidebar groups pull requests into:
 
@@ -76,7 +76,7 @@ The sidebar groups pull requests into:
 
 A review goes through these steps:
 
-1. **Start review** (`r`). If the repo uses the CI agentic reviewer, Reviewer
+1. **Start review** (`r`). If the repo uses the CI agentic reviewer, Docket
    adds the `agentic-review` label and waits for the bot to comment. You can
    **Continue without it** at any time.
 2. Claude reviews the PR, then a second pass polishes the wording. The status
@@ -126,12 +126,12 @@ passed last and can weaken these protections.
 
 ## Files
 
-| What               | Where                                        |
-|--------------------|----------------------------------------------|
-| Config             | `~/Library/Application Support/reviewer/config.toml` |
-| Database           | `~/Library/Application Support/reviewer/reviewer.db` |
-| PR checkouts       | `~/Library/Caches/reviewer/worktrees` (configurable) |
-| App and run logs   | `~/Library/Logs/reviewer/`                   |
+| What             | Where                                              |
+|------------------|----------------------------------------------------|
+| Config           | `~/Library/Application Support/docket/config.toml` |
+| Database         | `~/Library/Application Support/docket/docket.db`   |
+| PR checkouts     | `~/Library/Caches/docket/worktrees` (configurable) |
+| App and run logs | `~/Library/Logs/docket/`                           |
 
 ## Development
 

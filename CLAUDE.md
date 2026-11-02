@@ -1,4 +1,4 @@
-# Reviewer
+# Docket
 
 macOS Dioxus 0.7 desktop app. See README.md for use and DESIGN.md for the design;
 DESIGN.md section 15 lists where the build differs from it.

@@ -1,4 +1,4 @@
-# Reviewer — Design
+# Docket — Design
 
 A macOS-only Rust desktop app for tracking GitHub PRs and producing
 Claude-assisted reviews that I edit and post myself.
@@ -50,11 +50,11 @@ system webview. Tauri would need a JS/TS frontend; iced/egui would mean a lot of
 custom rendering work.
 
 Paths:
-- Config: `~/Library/Application Support/reviewer/config.toml`
-- DB: `~/Library/Application Support/reviewer/reviewer.db`
-- Clones/worktrees: `~/Library/Caches/reviewer/` (configurable)
-- Agent sandbox cwd: `~/Library/Caches/reviewer/sandbox/<run-id>/` (empty dirs)
-- Logs: `~/Library/Logs/reviewer/` (retention configurable)
+- Config: `~/Library/Application Support/docket/config.toml`
+- DB: `~/Library/Application Support/docket/docket.db`
+- Clones/worktrees: `~/Library/Caches/docket/` (configurable)
+- Agent sandbox cwd: `~/Library/Caches/docket/sandbox/<run-id>/` (empty dirs)
+- Logs: `~/Library/Logs/docket/` (retention configurable)
 
 ---
 
@@ -491,7 +491,7 @@ or the filter box.
 ### 10.7 Native menus (muda)
 **A custom menu replaces Dioxus's default, so the Edit menu must be rebuilt**, otherwise
 ⌘C/⌘V/⌘Z stop working in text fields.
-- **Reviewer**: About, Settings… (v1.1, ⌘,), Quit
+- **Docket**: About, Settings… (v1.1, ⌘,), Quit
 - **Edit**: Undo, Redo, Cut, Copy, Paste, Select All
 - **View**: Refresh, Filter, Compact rows, Split preview, Show ignored & snoozed, Zoom
 - **PR**: Start review, Re-run, Cancel run, Post…, Ignore, Snooze ▸, Open in GitHub
@@ -538,7 +538,7 @@ Logs older than `log_retention` are pruned on startup.
 ```toml
 poll_interval = "5m"
 max_concurrent_reviews = 2
-worktree_root = "~/Library/Caches/reviewer/worktrees"
+worktree_root = "~/Library/Caches/docket/worktrees"
 auto_unignore_on_new_commits = true
 log_retention = "30d"
 

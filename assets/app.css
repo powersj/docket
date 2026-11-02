@@ -1,4 +1,4 @@
-/* Reviewer — app chrome. Tokens first; light is the default, dark via prefers-color-scheme. */
+/* Docket — app chrome. Tokens first; light is the default, dark via prefers-color-scheme. */
 :root {
   color-scheme: light dark;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;

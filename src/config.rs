@@ -148,7 +148,7 @@ fn d_concurrent() -> usize {
     2
 }
 fn d_worktree_root() -> String {
-    "~/Library/Caches/reviewer/worktrees".into()
+    "~/Library/Caches/docket/worktrees".into()
 }
 fn d_true() -> bool {
     true
@@ -287,28 +287,28 @@ pub mod paths {
         dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"))
     }
     pub fn support_dir() -> PathBuf {
-        home().join("Library/Application Support/reviewer")
+        home().join("Library/Application Support/docket")
     }
     pub fn config_file() -> PathBuf {
         support_dir().join("config.toml")
     }
     pub fn db_file() -> PathBuf {
-        support_dir().join("reviewer.db")
+        support_dir().join("docket.db")
     }
     pub fn cache_dir() -> PathBuf {
-        home().join("Library/Caches/reviewer")
+        home().join("Library/Caches/docket")
     }
     pub fn sandbox_dir() -> PathBuf {
         cache_dir().join("sandbox")
     }
     pub fn log_dir() -> PathBuf {
-        home().join("Library/Logs/reviewer")
+        home().join("Library/Logs/docket")
     }
 }
 
 pub const EXAMPLE_CONFIG: &str = r#"poll_interval = "5m"
 max_concurrent_reviews = 2
-worktree_root = "~/Library/Caches/reviewer/worktrees"
+worktree_root = "~/Library/Caches/docket/worktrees"
 auto_unignore_on_new_commits = true
 log_retention = "30d"
 

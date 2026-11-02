@@ -1382,6 +1382,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "docket"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.23.1",
+ "block2",
+ "chrono",
+ "comrak",
+ "dioxus",
+ "dioxus-ssr",
+ "dirs 7.0.0",
+ "humantime",
+ "humantime-serde",
+ "insta",
+ "libc",
+ "objc2",
+ "objc2-app-kit",
+ "proptest",
+ "reqwest",
+ "rusqlite",
+ "semver",
+ "serde",
+ "serde_json",
+ "syntect",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "tokio-util",
+ "toml 1.1.8+spec-1.1.0",
+ "toml_edit 0.25.17+spec-1.1.0",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "window-vibrancy",
+]
+
+[[package]]
 name = "dpi"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4358,44 +4396,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
-]
-
-[[package]]
-name = "reviewer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.23.1",
- "block2",
- "chrono",
- "comrak",
- "dioxus",
- "dioxus-ssr",
- "dirs 7.0.0",
- "humantime",
- "humantime-serde",
- "insta",
- "libc",
- "objc2",
- "objc2-app-kit",
- "proptest",
- "reqwest",
- "rusqlite",
- "semver",
- "serde",
- "serde_json",
- "syntect",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "tokio-util",
- "toml 1.1.8+spec-1.1.0",
- "toml_edit 0.25.17+spec-1.1.0",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "window-vibrancy",
 ]
 
 [[package]]

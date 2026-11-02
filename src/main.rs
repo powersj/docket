@@ -1,4 +1,4 @@
-//! Reviewer: track GitHub PRs and produce Claude-assisted reviews to edit and post.
+//! Docket: track GitHub PRs and produce Claude-assisted reviews to edit and post.
 
 mod agent;
 mod config;
@@ -18,11 +18,11 @@ use dioxus::desktop::{Config, WindowBuilder};
 fn init_logging() -> Option<tracing_appender::non_blocking::WorkerGuard> {
     let dir = config::paths::log_dir();
     std::fs::create_dir_all(&dir).ok()?;
-    let appender = tracing_appender::rolling::daily(&dir, "reviewer.log");
+    let appender = tracing_appender::rolling::daily(&dir, "docket.log");
     let (writer, guard) = tracing_appender::non_blocking(appender);
     tracing_subscriber::fmt()
         .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "reviewer=info,warn".into()),
+            tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "docket=info,warn".into()),
         )
         .with_writer(writer)
         .with_ansi(false)
@@ -41,7 +41,7 @@ fn main() {
     };
 
     let mut wb = WindowBuilder::new()
-        .with_title("Reviewer")
+        .with_title("Docket")
         .with_min_inner_size(LogicalSize::new(900.0, 560.0))
         .with_inner_size(LogicalSize::new(1320.0, 860.0))
         .with_titlebar_transparent(true)

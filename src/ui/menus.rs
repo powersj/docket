@@ -38,13 +38,13 @@ pub fn build() -> Menu {
     let sep = PredefinedMenuItem::separator;
 
     let app = Submenu::with_items(
-        "Reviewer",
+        "Docket",
         true,
         &[
             &PredefinedMenuItem::about(
                 None,
                 Some(AboutMetadata {
-                    name: Some("Reviewer".into()),
+                    name: Some("Docket".into()),
                     version: Some(env!("CARGO_PKG_VERSION").into()),
                     ..Default::default()
                 }),

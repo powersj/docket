@@ -37,7 +37,7 @@ confidence-threshold = 0.8
 unused-allowed-license = "allow"
 
 [licenses.private]
-# reviewer itself is `publish = false` and has no license of its own.
+# docket itself is `publish = false` and has no license of its own.
 ignore = true
 
 [bans]

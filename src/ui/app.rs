@@ -442,8 +442,8 @@ fn FirstRun() -> Element {
     let err = ctx.cfg.read().error.clone();
     rsx! {
         div { class: "first-run",
-            h1 { "Welcome to Reviewer" }
-            p { class: "muted", "Create a config file to tell Reviewer which repos to watch and which GitHub account to use." }
+            h1 { "Welcome to Docket" }
+            p { class: "muted", "Create a config file to tell Docket which repos to watch and which GitHub account to use." }
             p { "Save this as " span { class: "mono selectable", "{shown}" } " and edit it:" }
             pre { "{EXAMPLE_CONFIG}" }
             if let Some(e) = err {
@@ -464,7 +464,7 @@ fn FirstRun() -> Element {
                 }
                 button { class: "btn", onclick: move |_| svc::reload_config(ctx), "I've saved it — reload" }
             }
-            p { class: "faint", style: "margin-top: 18px", "Reviewer also needs the GitHub CLI (gh) logged in as that account, and Claude Code." }
+            p { class: "faint", style: "margin-top: 18px", "Docket also needs the GitHub CLI (gh) logged in as that account, and Claude Code." }
         }
     }
 }

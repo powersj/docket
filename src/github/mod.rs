@@ -98,7 +98,7 @@ pub struct HttpGitHub {
 impl HttpGitHub {
     pub fn new(login: &str) -> Self {
         let http = reqwest::Client::builder()
-            .user_agent(concat!("reviewer/", env!("CARGO_PKG_VERSION")))
+            .user_agent(concat!("docket/", env!("CARGO_PKG_VERSION")))
             .timeout(Duration::from_secs(60))
             .build()
             .expect("http client");
