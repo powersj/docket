@@ -64,7 +64,7 @@ pub fn App() -> Element {
     use_future(move || async move {
         loop {
             svc::refresh(ctx, false).await;
-            let wait = ctx.config().map(|c| c.poll_interval).unwrap_or(Duration::from_secs(3));
+            let wait = ctx.config().map_or(Duration::from_secs(3), |c| c.poll_interval);
             tokio::time::sleep(wait).await;
         }
     });
@@ -90,7 +90,7 @@ pub fn App() -> Element {
     use_future(move || async move {
         let mut ev = document::eval(KEY_JS);
         while let Ok(k) = ev.recv::<KeyMsg>().await {
-            commands::key(ctx, k);
+            commands::key(ctx, &k);
         }
     });
 

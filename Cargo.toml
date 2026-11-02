@@ -2,6 +2,7 @@
 name = "reviewer"
 version = "0.1.0"
 edition = "2024"
+publish = false
 
 [dependencies]
 anyhow = "1.0.104"
@@ -17,7 +18,6 @@ humantime-serde = "1.1.1"
 libc = "0.2.191"
 objc2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "NSWindow", "NSView", "NSResponder", "NSGraphics", "block2"] }
-objc2-foundation = { version = "0.3", features = ["NSGeometry"] }
 reqwest = { version = "0.13.5", features = ["json"] }
 rusqlite = { version = "0.41.1", features = ["bundled"] }
 semver = "1.0.28"
@@ -34,6 +34,36 @@ tracing-appender = "0.2.5"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 window-vibrancy = "0.8.1"
 
+[package.metadata.cargo-machete]
+# Used only by name in `#[serde(with = "humantime_serde")]`, which machete can't see.
+ignored = ["humantime-serde"]
+
+[lints.rust]
+missing_docs = "warn"
+# Not `unused_qualifications`: it fires on paths that `rsx!` expands to.
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+# Every unsafe block (the objc2 and libc calls) needs a `// SAFETY:` comment
+# saying why it is sound.
+undocumented_unsafe_blocks = "warn"
+# Pedantic lints that cost more churn than they return here.
+items_after_statements = "allow" # helper types next to the code that uses them are fine
+too_many_lines = "allow"         # long functions are split by judgment, not by count
+# `Ctx` is a Copy bundle of Signal handles that closures move by value, the
+# Dioxus idiom; borrowing it would not outlive a `move` closure.
+large_types_passed_by_value = "allow"
+match_same_arms = "allow"         # key and menu dispatch keeps one arm per key, even when two do the same
+if_not_else = "allow"             # `if !preview { "active" }` reads fine, and the autofix breaks rsx!
+struct_excessive_bools = "allow"  # UI state structs are bags of flags
+many_single_char_names = "allow"  # anchor math (a, n, c) reads better short
+similar_names = "allow"
+
+[lints.rustdoc]
+broken_intra_doc_links = "deny"
+
 [dev-dependencies]
 dioxus-ssr = "0.7.10"
+insta = "1.49.0"
+proptest = "1.12.0"
 tempfile = "3.27.0"

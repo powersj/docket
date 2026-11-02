@@ -1,0 +1,60 @@
+---
+source: src/agent/prompt.rs
+expression: prompt
+---
+/code-review Review this pull request.
+
+## Pull request
+- Repository: o/r
+- Number: #7
+- Title: PR 7
+- Author: @alice
+- Base SHA: def456
+- Head SHA: abc123
+- Merge base: fed789
+- Checkout (read-only): /wt/o/r/7
+
+PR description:
+<untrusted name="pr_body">
+Line one
+Line two
+Line three
+</untrusted>
+
+## Changed files
+- src/lib.rs +1 −1
+
+## Diff
+`git diff fed789 abc123`:
+<untrusted name="diff">
+diff --git a/src/lib.rs b/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -1,2 +1,2 @@
+ fn a() {}
+-fn b() {}
++fn b() -> u8 { 1 }
+
+</untrusted>
+
+You can read files under /wt/o/r/7 and run `git -C /wt/o/r/7 diff|log|show|blame ...`. Nothing else.
+
+## Already said
+These points were already made by the CI agentic reviewer or by me. Do not repeat these points. Only add something if it is new or materially different.
+<untrusted name="already_said">
+--- CI agentic reviewer, comment on src/lib.rs:2, 2026-10-30 09:00
+Consider a doc comment.
+
+
+</untrusted>
+
+## Output rules
+- Return the review through the structured output schema.
+- `verdict` is only a suggestion; prefer COMMENT unless you are confident.
+- Inline comments must target lines that appear in the diff above.
+- `side: RIGHT` targets added (+) or unchanged context lines, by their new line number.
+- `side: LEFT` targets deleted (-) or context lines, by their old line number.
+- For a range, set `start_line` < `line` within the same hunk and set `start_side`.
+- A ```suggestion that replaces more than one line needs `start_line`.
+- For renamed-only, binary or deleted-without-hunk files, use `subject_type: "file"` with no line.
+- Keep comments specific and actionable. The summary is markdown.

@@ -4,7 +4,7 @@
 use anyhow::{Result, anyhow};
 use serde_json::Value;
 
-use super::schema::*;
+use super::schema::{AgentComment, DraftComment, DupInfo, ReviewOutput};
 use crate::repo::diff::{DiffIndex, Side};
 use crate::state::SaidItem;
 
@@ -83,7 +83,7 @@ pub fn parse_stream_line(line: &str, strip: Option<&str>) -> Vec<StreamEvent> {
             structured: v.get("structured_output").filter(|s| !s.is_null()).cloned(),
             text: v.get("result").and_then(Value::as_str).unwrap_or_default().into(),
             cost_usd: v.get("total_cost_usd").and_then(Value::as_f64).unwrap_or(0.0),
-            turns: v.get("num_turns").and_then(Value::as_u64).unwrap_or(0) as u32,
+            turns: v.get("num_turns").and_then(Value::as_u64).map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX)),
             is_error: v.get("is_error").and_then(Value::as_bool).unwrap_or(false),
             subtype: v.get("subtype").and_then(Value::as_str).unwrap_or_default().into(),
             duration_ms: v.get("duration_ms").and_then(Value::as_u64).unwrap_or(0),
@@ -112,7 +112,7 @@ pub fn extract_review(r: &RunResult) -> Result<ReviewOutput> {
     Err(anyhow!("agent returned no structured review"))
 }
 
-/// Fenced code blocks (``` or ~~~), each including its fence lines.
+/// Fenced code blocks (`` ``` `` or `~~~`), each including its fence lines.
 pub fn fenced_blocks(md: &str) -> Vec<String> {
     let mut out = vec![];
     let mut cur: Option<(char, usize, String)> = None;
@@ -161,8 +161,7 @@ pub fn split_fence(block: &str) -> (&str, &str) {
     let info = first.trim().trim_start_matches(['`', '~']).trim();
     let body = rest
         .rsplit_once('\n')
-        .map(|(b, last)| if last.trim().is_empty() { b.rsplit_once('\n').map(|x| x.0).unwrap_or("") } else { b })
-        .unwrap_or("");
+        .map_or("", |(b, last)| if last.trim().is_empty() { b.rsplit_once('\n').map_or("", |x| x.0) } else { b });
     (info, body)
 }
 
@@ -471,7 +470,7 @@ deleted file mode 100644
         );
         let r = verify_polish(&o, &good);
         assert!(r.summary.is_ok());
-        assert!(r.comments.iter().all(|c| c.is_ok()));
+        assert!(r.comments.iter().all(std::result::Result::is_ok));
 
         let bad = out(
             "Nice.\n```go\nx := 2\n```\n",
@@ -487,7 +486,7 @@ deleted file mode 100644
 
         let short = out("Nice.\n```go\nx := 1\n```\n", vec![]);
         let r = verify_polish(&o, &short);
-        assert!(r.comments.iter().all(|c| c.is_err()));
+        assert!(r.comments.iter().all(std::result::Result::is_err));
     }
 
     #[test]

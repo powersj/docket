@@ -3,9 +3,25 @@
 macOS Dioxus 0.7 desktop app. See README.md for use and DESIGN.md for the design;
 DESIGN.md section 15 lists where the build differs from it.
 
+## Before you finish any change
+
+Run `make lint` after every change to Rust code, `Cargo.toml`, or `deny.toml`, and fix
+everything it reports before you call the work done. `make fmt` fixes formatting. Then run
+`make test`. The git pre-commit hook and CI both run `make lint`, so a change that fails it
+cannot merge.
+
+- Don't silence a lint to make it pass. If a lint is wrong for one item, put
+  `#[expect(clippy::lint_name, reason = "...")]` on that item. Change crate-wide levels only
+  in `[lints]` in `Cargo.toml`, with a comment saying why.
+- Every `unsafe` block needs a `// SAFETY:` comment saying why it is sound.
+- Snapshot tests use `insta`. When output changes on purpose, run `cargo insta review` and
+  check each diff before accepting it. `src/agent/snapshots/` holds the full review prompt.
+- Untrusted input boundaries (`markdown::render`, `prompt::fence`, `DiffIndex::parse`) have
+  property tests. Keep them passing; add one when you add a boundary.
+
 ## Commands
 
-- `make test`: unit tests. Run before committing.
+- `make test`: unit, property, and snapshot tests, through nextest (one process per test).
 - `cargo test -- --ignored sandbox`: runs the real `claude` CLI to check the sandbox
   (costs a few cents). Run after changing `src/agent/sandbox.rs` or the CLI version.
 - `SNAPSHOT_DIR=/tmp/snap cargo test -- --ignored ui_snapshot`, then

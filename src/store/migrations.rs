@@ -4,7 +4,7 @@ use rusqlite::Connection;
 
 pub const MIGRATIONS: &[&str] = &[
     // 1: initial schema (design section 11).
-    r#"
+    r"
     CREATE TABLE prs(
         id TEXT PRIMARY KEY,
         repo TEXT NOT NULL,
@@ -82,15 +82,18 @@ pub const MIGRATIONS: &[&str] = &[
         applied_by_app INTEGER NOT NULL
     );
     CREATE TABLE ui_state(key TEXT PRIMARY KEY, value TEXT NOT NULL);
-    "#,
+    ",
 ];
 
 pub fn migrate(conn: &mut Connection) -> rusqlite::Result<()> {
     let version: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-    for (i, sql) in MIGRATIONS.iter().enumerate().skip(version as usize) {
+    // A negative version means the file was not written by this app; refuse it
+    // rather than skip every migration.
+    let applied = usize::try_from(version).map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, version))?;
+    for (i, sql) in MIGRATIONS.iter().enumerate().skip(applied) {
         let tx = conn.transaction()?;
         tx.execute_batch(sql)?;
-        tx.pragma_update(None, "user_version", (i + 1) as i64)?;
+        tx.pragma_update(None, "user_version", i64::try_from(i + 1).unwrap_or(i64::MAX))?;
         tx.commit()?;
     }
     Ok(())

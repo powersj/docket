@@ -22,8 +22,8 @@ fn ts(t: &Time) -> String {
     t.to_rfc3339()
 }
 
-fn ts_opt(t: &Option<Time>) -> Option<String> {
-    t.as_ref().map(ts)
+fn ts_opt(t: Option<&Time>) -> Option<String> {
+    t.map(ts)
 }
 
 fn parse_ts(s: Option<String>) -> Option<Time> {
@@ -119,13 +119,13 @@ impl Store {
                     s.map(|s| s.requested),
                     rec.stage.as_db(),
                     rec.stage_detail,
-                    rec.stage_before.map(|s| s.as_db()),
+                    rec.stage_before.map(super::state::Stage::as_db),
                     ts(&rec.stage_updated_at),
-                    ts_opt(&rec.snoozed_until),
+                    ts_opt(rec.snoozed_until.as_ref()),
                     rec.ignored_at_sha,
-                    ts_opt(&rec.agentic_label_applied_at),
+                    ts_opt(rec.agentic_label_applied_at.as_ref()),
                     rec.agentic_done_sha,
-                    ts_opt(&rec.agentic_done_at),
+                    ts_opt(rec.agentic_done_at.as_ref()),
                     rec.reviewed_sha,
                     rec.reviewed_pending,
                     s.map(|_| ts(&chrono::Utc::now())),
@@ -310,7 +310,7 @@ impl Store {
             c.execute(
                 "INSERT OR REPLACE INTO posted_reviews(review_id, pr_id, draft_id, head_sha, verdict, pending, url, posted_at, body)
                  VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
-                params![p.review_id as i64, p.pr_id, p.draft_id, p.head_sha, p.verdict, p.pending, p.url, ts(&p.posted_at), p.body],
+                params![p.review_id.cast_signed(), p.pr_id, p.draft_id, p.head_sha, p.verdict, p.pending, p.url, ts(&p.posted_at), p.body],
             )
             .map(|_| ())
         })
@@ -320,7 +320,7 @@ impl Store {
         self.with(|c| {
             let mut st = c.prepare("SELECT review_id FROM posted_reviews WHERE pr_id=?1")?;
             let ids = st.query_map([pr_id], |r| r.get::<_, i64>(0))?;
-            ids.map(|r| r.map(|i| i as u64)).collect()
+            ids.map(|r| r.map(i64::cast_unsigned)).collect()
         })
     }
 
@@ -332,7 +332,7 @@ impl Store {
                 [draft_id],
                 |r| {
                     Ok(PostedRow {
-                        review_id: r.get::<_, i64>(0)? as u64,
+                        review_id: r.get::<_, i64>(0)?.cast_unsigned(),
                         pr_id: r.get(1)?,
                         draft_id: r.get(2)?,
                         head_sha: r.get(3)?,

@@ -205,7 +205,7 @@ pub fn ReviewTab(id: String) -> Element {
                 }
             }
             if adding() {
-                AddComment { id: id.clone(), on_done: move |_| adding.set(false) }
+                AddComment { id: id.clone(), on_done: move |()| adding.set(false) }
             }
             if d.comments.is_empty() && !adding() {
                 div { class: "muted", "No inline comments." }

@@ -42,8 +42,9 @@ pub fn StatusCard(id: String) -> Element {
             let detail = e.rec.stage_detail.clone().unwrap_or_default();
             let elapsed = now - e.rec.stage_updated_at;
             let total = chrono::Duration::from_std(cfg.agentic.wait_timeout).unwrap_or_default();
+            #[expect(clippy::cast_precision_loss, reason = "a progress bar; seconds are far below 2^52")]
             let pct = (elapsed.num_seconds() as f64 / total.num_seconds().max(1) as f64 * 100.0).clamp(0.0, 100.0);
-            let checked = e.detail_checked_at.map(|t| mmss(now - t)).unwrap_or_else(|| "not yet".into());
+            let checked = e.detail_checked_at.map_or_else(|| "not yet".into(), |t| mmss(now - t));
             let (a, b, c) = (id.clone(), id.clone(), id.clone());
             if let Some(msg) = detail.strip_prefix("unavailable:") {
                 rsx! {
@@ -127,7 +128,7 @@ pub fn StatusCard(id: String) -> Element {
         }
         Stage::ClaudeReviewing | Stage::Polishing => {
             let rv = run.clone();
-            let line = rv.as_ref().map(|r| r.line.clone()).unwrap_or_else(|| "Starting…".into());
+            let line = rv.as_ref().map_or_else(|| "Starting…".into(), |r| r.line.clone());
             let el = rv.as_ref().map(|r| mmss(now - r.started)).unwrap_or_default();
             let cost = rv.as_ref().and_then(|r| r.cost).map(|c| format!(" · ${c:.2}")).unwrap_or_default();
             let what = if e.rec.stage == Stage::Polishing { "Polishing" } else { "Reviewing" };

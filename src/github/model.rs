@@ -80,7 +80,7 @@ pub struct CheckContext {
 pub struct Review {
     pub id: u64,
     pub author: String,
-    /// PENDING, COMMENTED, APPROVED, CHANGES_REQUESTED, DISMISSED
+    /// PENDING, COMMENTED, APPROVED, `CHANGES_REQUESTED`, DISMISSED
     pub state: String,
     pub body: String,
     pub commit_oid: Option<String>,
@@ -156,7 +156,7 @@ impl PrDetail {
         reviews.sort_by_key(|r| r.submitted_at.unwrap_or(r.created_at));
         for r in reviews {
             match out.iter_mut().find(|o| o.name == r.author) {
-                Some(o) if o.state != "requested" => o.state = r.state.clone(),
+                Some(o) if o.state != "requested" => o.state.clone_from(&r.state),
                 Some(_) => {}
                 None => out.push(Reviewer { name: r.author.clone(), state: r.state.clone() }),
             }

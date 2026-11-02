@@ -201,7 +201,7 @@ mod tests {
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     }
 
-    /// Builds a local "remote", then drives prepare() against a clone of it by
+    /// Builds a local "remote", then drives `prepare()` against a clone of it by
     /// pointing the bare repo's origin at the local path.
     #[tokio::test]
     async fn prepare_makes_clean_worktree_and_diff() {
@@ -234,7 +234,7 @@ mod tests {
         let co = repos.prepare("o/r", 1, &head, &base, None).await.unwrap();
         assert!(!co.worktree.join("junk").exists());
 
-        repos.gc(&Default::default()).await;
+        repos.gc(&std::collections::HashSet::default()).await;
         assert!(!co.worktree.exists());
     }
 }

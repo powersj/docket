@@ -205,6 +205,7 @@ struct RootProps {
 }
 
 #[allow(non_snake_case)]
+#[expect(clippy::needless_pass_by_value, reason = "Dioxus components take their props by value")]
 fn Root(p: RootProps) -> Element {
     let ctx = use_hook(|| {
         let c = Ctx::new();
@@ -230,7 +231,7 @@ fn Root(p: RootProps) -> Element {
 }
 
 #[test]
-#[ignore]
+#[ignore = "renders the UI to SNAPSHOT_DIR for a manual visual check"]
 fn ui_snapshot() {
     let dir = std::env::var("SNAPSHOT_DIR").unwrap_or_else(|_| "target/snapshots".into());
     std::fs::create_dir_all(&dir).unwrap();

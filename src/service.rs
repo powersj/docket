@@ -11,7 +11,11 @@ use tokio_util::sync::CancellationToken;
 
 use crate::agent::{self, output::StreamEvent, runner::RunError, schema::ReviewOutput};
 use crate::config::{Config, ConfigState, paths};
-use crate::github::{self, Compare, GitHub, HttpGitHub, model::*, mutate::*};
+use crate::github::{
+    self, Compare, GitHub, HttpGitHub,
+    model::{PrDetail, PrState, PrSummary, Time},
+    mutate::{ReviewCommentPayload, ReviewPayload, WriteError},
+};
 use crate::preflight::{self, Report};
 use crate::repo::{DiffIndex, Repos};
 use crate::state::{self, Event, Phase, PrRecord, Stage};
@@ -423,7 +427,7 @@ async fn refresh_list(mut ctx: Ctx, cfg: &Config) -> anyhow::Result<()> {
     let list = gh.list(&github::searches_for(cfg)).await?;
     // Watched sources are filtered by author in-app; requested PRs always show.
     let list: Vec<PrSummary> = list.into_iter().filter(|p| p.requested || cfg.watches(&p.repo, &p.author)).collect();
-    let seen: HashSet<String> = list.iter().map(|p| p.id()).collect();
+    let seen: HashSet<String> = list.iter().map(super::github::model::PrSummary::id).collect();
     let now = chrono::Utc::now();
     let store = &svc().store;
 
@@ -672,7 +676,7 @@ pub fn snooze_preset(preset: &str) -> Time {
     };
     let t = match preset {
         "monday" => {
-            let wd = now.weekday().num_days_from_monday() as i64;
+            let wd = i64::from(now.weekday().num_days_from_monday());
             at(if wd == 0 { 7 } else { 7 - wd })
         }
         "week" => at(7),
@@ -733,7 +737,7 @@ pub async fn start_review(ctx: Ctx, id: String) {
     if !d.summary.labels.iter().any(|l| l.eq_ignore_ascii_case(&cfg.agentic.label)) {
         if !report.can_write() {
             update_rec(ctx, &id, |r| {
-                r.stage_detail = Some("unavailable:GitHub check failed; can't add the label".into())
+                r.stage_detail = Some("unavailable:GitHub check failed; can't add the label".into());
             });
             return;
         }
@@ -848,7 +852,7 @@ fn enqueue(mut ctx: Ctx, id: String, polish_only: bool) {
     spawn(async move {
         let permit = tokio::select! {
             p = sem.acquire_owned() => p.ok(),
-            _ = token.cancelled() => None,
+            () = token.cancelled() => None,
         };
         ctx.queue.write().retain(|q| q != &id);
         let Some(_permit) = permit else { return };
@@ -905,7 +909,7 @@ pub fn retry(ctx: Ctx, id: &str) {
     }
     match was {
         Stage::Error(Phase::ClaudeReviewing) | Stage::Interrupted(Phase::ClaudeReviewing) => {
-            enqueue(ctx, id.to_string(), false)
+            enqueue(ctx, id.to_string(), false);
         }
         Stage::Error(Phase::Polishing) | Stage::Interrupted(Phase::Polishing) => enqueue(ctx, id.to_string(), true),
         _ => {}
@@ -936,7 +940,7 @@ fn start_run_view(mut ctx: Ctx, id: &str, phase: Phase, line: &str) {
 fn run_line(mut ctx: Ctx, id: &str, kind: &'static str, text: String, set_line: bool) {
     if let Some(rv) = ctx.runs.write().get_mut(id) {
         if set_line {
-            rv.line = text.clone();
+            rv.line.clone_from(&text);
         }
         rv.log.push(LogLine { at: chrono::Utc::now(), kind, text });
         if rv.log.len() > 500 {
@@ -1003,7 +1007,7 @@ async fn review_and_polish(mut ctx: Ctx, id: &str, cfg: &Config, token: Cancella
     let repos = svc().repos(cfg);
     let co = tokio::select! {
         r = repos.prepare(&pr.repo, pr.number, &pr.head_sha, &pr.base_sha, token_gh.as_deref()) => r.map_err(|e| fail(format!("checkout: {e:#}")))?,
-        _ = token.cancelled() => return Err(RunError::Cancelled),
+        () = token.cancelled() => return Err(RunError::Cancelled),
     };
     ctx.diffs.write().insert(id.to_string(), Arc::new(co.diff.clone()));
     let said = state::already_said(&detail, cfg);

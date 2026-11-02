@@ -75,7 +75,7 @@ mod sandbox_integration {
     const SKILL: &str = "writing-clearly-and-concisely";
 
     #[tokio::test]
-    #[ignore]
+    #[ignore = "runs the real claude CLI, which costs a few cents"]
     async fn sandbox_ignores_pr_config() {
         let user_skill = dirs::home_dir().unwrap().join(".claude/skills").join(SKILL).join("SKILL.md");
         assert!(user_skill.exists(), "this test needs the user skill {SKILL}");
@@ -110,7 +110,7 @@ mod sandbox_integration {
 
         let cfg = ClaudeConfig { max_turns: 4, max_budget_usd: 0.5, ..Default::default() };
         let schema = r#"{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}"#;
-        let spec = runner::RunSpec {
+        let spec = RunSpec {
             binary: cfg.binary.clone(),
             args: sandbox::review_args(&cfg, schema, &wt),
             cwd: tmp.path().join("sandbox"),
@@ -149,7 +149,7 @@ mod sandbox_integration {
     /// The `git -C <worktree>` allowlist lets the agent read history, and
     /// anything else (here, writing a file) is denied.
     #[tokio::test]
-    #[ignore]
+    #[ignore = "runs the real claude CLI, which costs a few cents"]
     async fn sandbox_allows_git_reads_only() {
         let tmp = tempfile::tempdir().unwrap();
         let wt = tmp.path().join("wt");
@@ -175,7 +175,7 @@ mod sandbox_integration {
 
         let cfg = ClaudeConfig { max_turns: 6, max_budget_usd: 0.5, ..Default::default() };
         let schema = r#"{"type":"object","properties":{"subject":{"type":"string"},"touch_worked":{"type":"boolean"}},"required":["subject","touch_worked"]}"#;
-        let spec = runner::RunSpec {
+        let spec = RunSpec {
             binary: cfg.binary.clone(),
             args: sandbox::review_args(&cfg, schema, &wt),
             cwd: tmp.path().join("sandbox"),

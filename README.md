@@ -29,6 +29,7 @@ make build
 |--------------|----------------------------------|
 | `make build` | Builds `target/release/reviewer` |
 | `make test`  | Runs the unit tests              |
+| `make lint`  | Runs every lint check            |
 | `make clean` | Removes build output             |
 
 ## Set up
@@ -136,7 +137,19 @@ passed last and can weaken these protections.
 
 The design is in [DESIGN.md](DESIGN.md).
 
-`make test` runs the unit tests. Three more tests are opt-in:
+Run `make setup` once after cloning. It installs the lint and test tools and
+enables a git pre-commit hook that runs `make lint`.
+
+```sh
+make lint       # formatting, Clippy, doc warnings, cargo-deny, unused dependencies
+make fmt        # fix formatting
+make test       # unit, property, and snapshot tests
+make coverage   # line coverage report in your browser
+```
+
+Run `make lint` before every commit; the hook and CI both enforce it.
+
+Three more tests are opt-in:
 
 ```sh
 cargo test -- --ignored sandbox   # calls the real Claude CLI; costs a few cents

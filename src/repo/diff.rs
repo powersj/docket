@@ -137,7 +137,7 @@ impl DiffIndex {
                 }
                 in_hunk = false;
                 // Best effort from the header; ---/+++ lines refine it.
-                let path = rest.rsplit_once(" b/").map(|(_, b)| b.to_string()).unwrap_or_else(|| rest.to_string());
+                let path = rest.rsplit_once(" b/").map_or_else(|| rest.to_string(), |(_, b)| b.to_string());
                 cur = Some(FileDiff {
                     path: unquote(&path),
                     old_path: None,
@@ -158,18 +158,18 @@ impl DiffIndex {
                 };
                 if let Some(t) = line.strip_prefix('+') {
                     push(LineKind::Add, None, Some(new_no), t);
-                    new_no += 1;
+                    new_no = new_no.saturating_add(1);
                     f.additions += 1;
                     continue;
                 } else if let Some(t) = line.strip_prefix('-') {
                     push(LineKind::Del, Some(old_no), None, t);
-                    old_no += 1;
+                    old_no = old_no.saturating_add(1);
                     f.deletions += 1;
                     continue;
                 } else if let Some(t) = line.strip_prefix(' ') {
                     push(LineKind::Ctx, Some(old_no), Some(new_no), t);
-                    old_no += 1;
-                    new_no += 1;
+                    old_no = old_no.saturating_add(1);
+                    new_no = new_no.saturating_add(1);
                     continue;
                 } else if line.starts_with('\\') {
                     continue;
@@ -336,7 +336,7 @@ new file mode 100644
             ]
         );
         assert_eq!(d.files[1].old_path.as_deref(), Some("old.txt"));
-        assert!(d.files[1].hunks.is_empty());
+        assert_eq!(d.files[1].hunks, []);
         let r = &d.files[0];
         assert_eq!((r.additions, r.deletions), (4, 2));
         assert_eq!(r.hunks.len(), 2);
@@ -372,5 +372,67 @@ new file mode 100644
             d.text_of("pkg/retry.go", Side::Right, 41, 42).unwrap(),
             "\t\ttime.Sleep(delay)\n\t\tlog.Print(attempt)"
         );
+    }
+
+    use proptest::prelude::*;
+
+    /// One line of a hunk body: its kind and text.
+    fn hunk_line() -> impl Strategy<Value = (LineKind, String)> {
+        (prop_oneof![Just(LineKind::Add), Just(LineKind::Del), Just(LineKind::Ctx)], "[^\r\n]{0,20}")
+    }
+
+    proptest! {
+        // The parser reads `git diff` output, but must never crash the app,
+        // whatever it is handed: random diff-shaped lines in any order.
+        #[test]
+        fn parse_never_panics(lines in proptest::collection::vec(prop_oneof![
+            Just("diff --git a/x b/x".to_string()),
+            Just("--- a/x".to_string()),
+            Just("+++ b/x".to_string()),
+            Just("@@ -1,2 +1,3 @@".to_string()),
+            Just("@@".to_string()),
+            Just("@@ -".to_string()),
+            Just("@@ -é +é @@".to_string()),
+            Just("@@ -18446744073709551615 +18446744073709551615 @@".to_string()),
+            Just("Binary files a/x and b/x differ".to_string()),
+            Just("rename from x".to_string()),
+            Just("rename to y".to_string()),
+            Just("\\ No newline at end of file".to_string()),
+            "[-+ ]\\PC{0,10}",
+            "\\PC{0,20}",
+        ], 0..30)) {
+            let _ = DiffIndex::parse(&lines.join("\n"));
+        }
+
+        // For any well-formed hunk, the parser counts additions and deletions
+        // correctly, keeps each line's text, and numbers both sides in order.
+        #[test]
+        fn parses_generated_hunks(start in 1u64..10_000, body in proptest::collection::vec(hunk_line(), 1..40)) {
+            let old_len = body.iter().filter(|(k, _)| *k != LineKind::Add).count();
+            let new_len = body.iter().filter(|(k, _)| *k != LineKind::Del).count();
+            let mut text = format!("diff --git a/f.rs b/f.rs\n--- a/f.rs\n+++ b/f.rs\n@@ -{start},{old_len} +{start},{new_len} @@\n");
+            for (kind, line) in &body {
+                let prefix = match kind { LineKind::Add => '+', LineKind::Del => '-', LineKind::Ctx => ' ' };
+                text.push(prefix);
+                text.push_str(line);
+                text.push('\n');
+            }
+
+            let d = DiffIndex::parse(&text);
+            let f = d.file("f.rs").expect("file parsed");
+            prop_assert_eq!(f.additions, u64::try_from(body.len() - old_len).unwrap());
+            prop_assert_eq!(f.deletions, u64::try_from(body.len() - new_len).unwrap());
+            let lines: Vec<_> = f.hunks.iter().flat_map(|h| &h.lines).collect();
+            prop_assert_eq!(lines.len(), body.len());
+            let (mut old, mut new) = (start, start);
+            for (got, (kind, want)) in lines.iter().zip(&body) {
+                prop_assert_eq!(got.kind, *kind);
+                prop_assert_eq!(&got.text, want);
+                prop_assert_eq!(got.old, (*kind != LineKind::Add).then_some(old));
+                prop_assert_eq!(got.new, (*kind != LineKind::Del).then_some(new));
+                if *kind != LineKind::Add { old += 1; }
+                if *kind != LineKind::Del { new += 1; }
+            }
+        }
     }
 }

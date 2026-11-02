@@ -1,11 +1,16 @@
 //! GraphQL query text and response parsing (pure; tested with fixtures).
 
+use std::fmt::Write as _;
+
 use anyhow::{Context, Result, anyhow};
 use serde_json::Value;
 
-use super::model::*;
+use super::model::{
+    CheckContext, CiCounts, CiState, IssueComment, LabelEvent, PrDetail, PrState, PrSummary, RateLimit, Review,
+    ReviewComment, ReviewThread, Time,
+};
 
-const PR_LIST_FIELDS: &str = r#"
+const PR_LIST_FIELDS: &str = r"
   number title url body isDraft state merged createdAt updatedAt
   headRefOid baseRefOid headRefName baseRefName additions deletions changedFiles
   author { login }
@@ -16,7 +21,7 @@ const PR_LIST_FIELDS: &str = r#"
     checkRunCountsByState { state count }
     statusContextCountsByState { state count }
   } } } } }
-"#;
+";
 
 pub const RATE_LIMIT: &str = "rateLimit { cost remaining resetAt }";
 
@@ -25,12 +30,13 @@ pub fn list_query(searches: &[(String, String, Option<String>)]) -> String {
     let mut q = String::from("query {\n");
     for (alias, search, after) in searches {
         let after = after.as_ref().map(|c| format!(", after: {}", json_str(c))).unwrap_or_default();
-        q.push_str(&format!(
+        let _ = write!(
+            q,
             "  {alias}: search(query: {}, type: ISSUE, first: 50{after}) {{\n    issueCount pageInfo {{ hasNextPage endCursor }}\n    nodes {{ ... on PullRequest {{ {PR_LIST_FIELDS} }} }}\n  }}\n",
             json_str(search)
-        ));
+        );
     }
-    q.push_str(&format!("  {RATE_LIMIT}\n}}\n"));
+    let _ = write!(q, "  {RATE_LIMIT}\n}}\n");
     q
 }
 
@@ -44,7 +50,7 @@ pub fn repo_probe_query(owner: &str, name: &str) -> String {
 
 pub fn detail_query(owner: &str, name: &str, number: u64) -> String {
     format!(
-        r#"query {{
+        r"query {{
   repository(owner: {owner}, name: {name}) {{
     pullRequest(number: {number}) {{
       {PR_LIST_FIELDS}
@@ -76,7 +82,7 @@ pub fn detail_query(owner: &str, name: &str, number: u64) -> String {
     }}
   }}
   {RATE_LIMIT}
-}}"#,
+}}",
         owner = json_str(owner),
         name = json_str(name),
     )
@@ -162,7 +168,7 @@ fn parse_ci(pr: &Value) -> CiCounts {
     let mut c = CiCounts { state: ci_state(&s(rollup, "state")), ..Default::default() };
     for key in ["checkRunCountsByState", "statusContextCountsByState"] {
         for e in rollup.pointer(&format!("/contexts/{key}")).and_then(Value::as_array).into_iter().flatten() {
-            let n = e.get("count").and_then(Value::as_u64).unwrap_or(0) as u32;
+            let n = e.get("count").and_then(Value::as_u64).map_or(0, |n| u32::try_from(n).unwrap_or(u32::MAX));
             match ci_state(&s(e, "state")) {
                 CiState::Success => c.passed += n,
                 CiState::Failure => c.failed += n,
@@ -327,9 +333,7 @@ pub fn parse_detail(v: &Value, requested: bool) -> Result<PrDetail> {
         threads,
         comments,
         head_committed_at: head.and_then(|h| t(h, "committedDate")),
-        head_first_check_suite_at: head
-            .map(|h| nodes(h, "checkSuites").filter_map(|n| t(n, "createdAt")).min())
-            .unwrap_or(None),
+        head_first_check_suite_at: head.and_then(|h| nodes(h, "checkSuites").filter_map(|n| t(n, "createdAt")).min()),
         label_events,
         fetched_at: chrono::Utc::now(),
     })

@@ -53,7 +53,7 @@ pub async fn run(
     let mut cmd = tokio::process::Command::from(std_cmd);
     cmd.stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
     let mut child = cmd.spawn().map_err(|e| fail(format!("starting {}: {e}", spec.binary)))?;
-    let pid = child.id().map(|p| p as i32);
+    let pid = child.id().and_then(|p| i32::try_from(p).ok());
 
     // The prompt goes on stdin, never argv.
     let mut stdin = child.stdin.take().unwrap();
@@ -82,8 +82,8 @@ pub async fn run(
 
     let outcome: Result<(), RunError> = loop {
         tokio::select! {
-            _ = cancel.cancelled() => break Err(RunError::Cancelled),
-            _ = &mut deadline => break Err(RunError::Timeout(spec.timeout)),
+            () = cancel.cancelled() => break Err(RunError::Cancelled),
+            () = &mut deadline => break Err(RunError::Timeout(spec.timeout)),
             line = lines.next_line() => match line {
                 Ok(Some(l)) => {
                     log.write_all(l.as_bytes()).await.ok();
@@ -124,7 +124,7 @@ pub async fn run(
         Some(r) => Ok(r),
         None => Err(fail(format!(
             "agent exited ({}) without a result{}",
-            status.map(|s| s.to_string()).unwrap_or_else(|| "unknown status".into()),
+            status.map_or_else(|| "unknown status".into(), |s| s.to_string()),
             first_line(&stderr_text).map(|l| format!(": {l}")).unwrap_or_default()
         ))),
     }
@@ -136,10 +136,13 @@ fn first_line(s: &str) -> Option<&str> {
 
 /// SIGTERM the process group, then SIGKILL after 5 s.
 async fn terminate_group(pid: i32, child: &mut tokio::process::Child) {
+    // SAFETY: kill(2) takes plain integers and touches no memory we own. The
+    // negative pid targets the group that `process_group(0)` made at spawn.
     unsafe {
         libc::kill(-pid, libc::SIGTERM);
     }
     if tokio::time::timeout(Duration::from_secs(5), child.wait()).await.is_err() {
+        // SAFETY: as above.
         unsafe {
             libc::kill(-pid, libc::SIGKILL);
         }
@@ -182,6 +185,9 @@ echo '{"type":"system","subtype":"init","model":"m","slash_commands":[]}'
 echo '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"/wt/a.go"}}]}}'
 echo '{"type":"result","subtype":"success","is_error":false,"num_turns":2,"total_cost_usd":0.5,"result":"","structured_output":{"verdict":"COMMENT","summary":"ok","comments":[]}}'"#,
         );
+        // SAFETY: set_var races with any other thread reading the environment.
+        // `make test` uses nextest, which runs each test in its own process, and
+        // this test's single-threaded runtime has not started other threads yet.
         unsafe { std::env::set_var("SOME_SECRET_TOKEN", "x") };
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
         let r = run(spec(dir.path(), bin, Duration::from_secs(10)), tx, CancellationToken::new()).await.unwrap();

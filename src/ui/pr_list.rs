@@ -181,7 +181,7 @@ fn SectionView(section: Section) -> Element {
 }
 
 fn chip_class(stage: state::Stage, timed_out: bool) -> &'static str {
-    use state::Stage::*;
+    use state::Stage::{DraftReady, Error, Interrupted, Posted, ReReviewNeeded};
     match stage {
         _ if timed_out => "warn",
         DraftReady | ReReviewNeeded => "attn",

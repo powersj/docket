@@ -55,7 +55,7 @@ pub fn set_zoom(z: f64) {
 
 /// Reports drag regions (and the controls inside them) whenever layout
 /// changes. While a sheet or popup is open nothing drags.
-pub const REGIONS_JS: &str = r#"
+pub const REGIONS_JS: &str = r"
 const controls = 'button, input, select, textarea, a, label, [data-no-drag]';
 function rect(el) { const r = el.getBoundingClientRect(); return {x: r.left, y: r.top, w: r.width, h: r.height}; }
 let last = '';
@@ -74,7 +74,7 @@ new MutationObserver(schedule).observe(document.body, {childList: true, subtree:
 window.addEventListener('resize', schedule);
 report();
 await new Promise(() => {});
-"#;
+";
 
 /// Install the mouse-down monitor once, on the main thread.
 pub fn install() {
@@ -106,7 +106,8 @@ pub fn install() {
             std::ptr::null_mut()
         });
         // SAFETY: called on the main thread; the block returns the event or null.
-        let monitor = unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::LeftMouseDown, &block) };
+        let monitor =
+            unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(NSEventMask::LeftMouseDown, &block) };
         // The monitor lives for the life of the app.
         std::mem::forget(monitor);
     });

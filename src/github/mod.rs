@@ -12,8 +12,8 @@ use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
-use model::*;
-use mutate::*;
+use model::{PrDetail, PrSummary, RateLimit};
+use mutate::{PostedReview, ReviewPayload, WriteError, find_matching};
 
 /// Downcast target for reads that failed because the token isn't SSO-authorized.
 #[derive(Debug, thiserror::Error)]
@@ -340,7 +340,7 @@ pub async fn post_review_once(
 
 /// A PR can come from a watch search and the requested search; keep one, starred.
 pub fn merge_sources(prs: Vec<PrSummary>) -> Vec<PrSummary> {
-    let mut map: std::collections::BTreeMap<String, PrSummary> = Default::default();
+    let mut map = std::collections::BTreeMap::<String, PrSummary>::new();
     for p in prs {
         let id = p.id();
         match map.get_mut(&id) {
@@ -357,6 +357,8 @@ pub fn merge_sources(prs: Vec<PrSummary>) -> Vec<PrSummary> {
 pub mod fake {
     //! An in-memory GitHub for tests.
     use super::*;
+    use model::pr_id;
+    use mutate::RestUser;
     use std::collections::HashMap;
 
     #[derive(Default)]
@@ -427,6 +429,7 @@ pub mod fake {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use mutate::RestUser;
 
     #[test]
     fn merge_keeps_star() {

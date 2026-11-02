@@ -7,7 +7,7 @@ use chrono::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::config::{Config, same_login};
-use crate::github::model::*;
+use crate::github::model::{PrDetail, PrState, PrSummary, Review, Time};
 
 /// A stage in which an agent run or wait was in flight.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -230,11 +230,14 @@ pub enum Event {
 /// in the current stage are ignored.
 pub fn apply(rec: &mut PrRecord, ev: Event, now: Time) -> bool {
     let before = rec.clone();
-    use Stage::*;
+    use Stage::{
+        AwaitingAgentic, ClaudeReviewing, DraftReady, Error, Ignored, Interrupted, New, Polishing, Posted,
+        ReReviewNeeded, Ready, Snoozed, Triage,
+    };
     match ev {
         Event::Selected => {
             if rec.stage == New {
-                rec.set(Triage, now)
+                rec.set(Triage, now);
             }
         }
         Event::StartReview { wait_for_agentic } => {
@@ -311,17 +314,17 @@ pub fn apply(rec: &mut PrRecord, ev: Event, now: Time) -> bool {
         }
         Event::RunStarted => {
             if rec.stage == Ready {
-                rec.set(ClaudeReviewing, now)
+                rec.set(ClaudeReviewing, now);
             }
         }
         Event::ReviewFinished => {
             if rec.stage == ClaudeReviewing {
-                rec.set(Polishing, now)
+                rec.set(Polishing, now);
             }
         }
         Event::PolishFinished => {
             if rec.stage == Polishing {
-                rec.set(DraftReady, now)
+                rec.set(DraftReady, now);
             }
         }
         Event::RunFailed { phase, message } => {
@@ -332,7 +335,7 @@ pub fn apply(rec: &mut PrRecord, ev: Event, now: Time) -> bool {
         }
         Event::Cancel => {
             if rec.stage.is_active() {
-                rec.set(Ready, now)
+                rec.set(Ready, now);
             }
         }
         Event::Retry => match rec.stage {
@@ -350,7 +353,7 @@ pub fn apply(rec: &mut PrRecord, ev: Event, now: Time) -> bool {
         },
         Event::Discard { has_draft } => {
             if matches!(rec.stage, Interrupted(_) | Error(_)) {
-                rec.set(if has_draft { DraftReady } else { Triage }, now)
+                rec.set(if has_draft { DraftReady } else { Triage }, now);
             }
         }
         Event::Posted { head, pending } => {
@@ -700,6 +703,7 @@ pub fn age(t: Time, now: Time) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::github::model::IssueComment;
     use crate::github::query;
     use chrono::TimeZone;
 

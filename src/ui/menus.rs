@@ -14,6 +14,7 @@ thread_local! {
     static CHECKS: RefCell<HashMap<&'static str, CheckMenuItem>> = RefCell::new(HashMap::new());
 }
 
+#[expect(clippy::unnecessary_wraps, reason = "every caller passes it straight to an `Option<Accelerator>` parameter")]
 fn acc(m: Modifiers, c: Code) -> Option<Accelerator> {
     Some(Accelerator::new(Some(m), c))
 }
@@ -172,7 +173,7 @@ pub fn set_checked(id: &str, on: bool) {
 pub fn update_for(stage: Option<Stage>, closed: bool, has_draft: bool) {
     let has = stage.is_some();
     let open = has && !closed;
-    let active = stage.is_some_and(|s| s.is_active());
+    let active = stage.is_some_and(super::super::state::Stage::is_active);
     set("start", open && !active && !matches!(stage, Some(Stage::DraftReady | Stage::Posted | Stage::ReReviewNeeded)));
     set("rerun", open && !active && has_draft);
     set("cancel", active);

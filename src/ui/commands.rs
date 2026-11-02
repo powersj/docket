@@ -13,7 +13,7 @@ pub struct KeyMsg {
 
 /// The keyboard bridge: single-letter keys only when focus isn't in a text
 /// field or the filter box.
-pub const KEY_JS: &str = r#"
+pub const KEY_JS: &str = r"
 document.addEventListener('keydown', (e) => {
   const t = e.target;
   const editable = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
@@ -33,7 +33,7 @@ document.addEventListener('focusin', (e) => {
   dioxus.send({key: inList ? 'focus-list' : 'focus-other'});
 });
 await new Promise(() => {});
-"#;
+";
 
 pub fn default_tab(stage: Stage) -> usize {
     match stage {
@@ -82,7 +82,7 @@ pub fn visible_ids(ctx: Ctx) -> Vec<String> {
     out
 }
 
-fn move_selection(ctx: Ctx, delta: i32) {
+fn move_selection(ctx: Ctx, delta: isize) {
     let ids = visible_ids(ctx);
     if ids.is_empty() {
         return;
@@ -90,7 +90,7 @@ fn move_selection(ctx: Ctx, delta: i32) {
     let cur = ctx.selected.read().clone();
     let idx = cur.and_then(|c| ids.iter().position(|i| *i == c));
     let next = match idx {
-        Some(i) => (i as i32 + delta).clamp(0, ids.len() as i32 - 1) as usize,
+        Some(i) => i.saturating_add_signed(delta).min(ids.len() - 1),
         None => 0,
     };
     svc::select(ctx, &ids[next]);
@@ -154,13 +154,13 @@ fn cards(ctx: Ctx, id: &str) -> Vec<u64> {
     v
 }
 
-fn move_card(mut ctx: Ctx, delta: i32) {
+fn move_card(mut ctx: Ctx, delta: isize) {
     let Some(id) = selected(ctx) else { return };
     let cs = cards(ctx, &id);
     let cur = *ctx.focus_card.read();
     let i = cur.and_then(|c| cs.iter().position(|x| *x == c));
     let n = match i {
-        Some(i) => (i as i32 + delta).clamp(0, cs.len() as i32 - 1) as usize,
+        Some(i) => i.saturating_add_signed(delta).min(cs.len() - 1),
         None => 0,
     };
     ctx.focus_card.set(Some(cs[n]));
@@ -283,7 +283,7 @@ pub fn menu(mut ctx: Ctx, mid: &str) {
     }
 }
 
-pub fn key(mut ctx: Ctx, k: KeyMsg) {
+pub fn key(mut ctx: Ctx, k: &KeyMsg) {
     let sel = selected(ctx);
     match k.key.as_str() {
         "focus-list" => ctx.list_focused.set(true),

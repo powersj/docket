@@ -57,7 +57,7 @@ impl Default for AgenticConfig {
             bot_logins: vec!["ai-reviewer".into()],
             enabled_repos: vec![],
             wait_poll_interval: Duration::from_secs(60),
-            wait_timeout: Duration::from_secs(30 * 60),
+            wait_timeout: Duration::from_mins(30),
         }
     }
 }
@@ -103,7 +103,7 @@ impl Default for ClaudeConfig {
             .to_vec(),
             max_turns: 60,
             max_budget_usd: 5.0,
-            run_timeout: Duration::from_secs(20 * 60),
+            run_timeout: Duration::from_mins(20),
             max_inline_diff_lines: 3000,
             already_said_max_chars: 20000,
             extra_args: vec![],
@@ -154,7 +154,7 @@ fn d_true() -> bool {
     true
 }
 fn d_log_retention() -> Duration {
-    Duration::from_secs(30 * 86400)
+    Duration::from_hours(720)
 }
 
 /// A config parse/validation failure, with a location when we know it.
@@ -393,13 +393,12 @@ pub mod edit {
         let mut t = Table::new();
         t["repo"] = value(repo);
         t["authors"] = value(Array::new());
-        match doc.get_mut("watch").and_then(Item::as_array_of_tables_mut) {
-            Some(a) => a.push(t),
-            None => {
-                let mut a = ArrayOfTables::new();
-                a.push(t);
-                doc["watch"] = Item::ArrayOfTables(a);
-            }
+        if let Some(a) = doc.get_mut("watch").and_then(Item::as_array_of_tables_mut) {
+            a.push(t);
+        } else {
+            let mut a = ArrayOfTables::new();
+            a.push(t);
+            doc["watch"] = Item::ArrayOfTables(a);
         }
         std::fs::write(path, doc.to_string())?;
         Ok(())
@@ -459,7 +458,7 @@ mod tests {
     fn example_parses() {
         let c = parse(EXAMPLE_CONFIG).unwrap();
         assert_eq!(c.poll_interval, Duration::from_secs(300));
-        assert_eq!(c.agentic.wait_timeout, Duration::from_secs(1800));
+        assert_eq!(c.agentic.wait_timeout, Duration::from_mins(30));
         assert_eq!(c.claude.max_turns, 60);
         assert_eq!(c.watch.len(), 1);
     }

@@ -1,0 +1,8 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc e87db0dca9a1cb7042e6b12d387adec0fcf65e885ab851fd3200420c1ef07774 # shrinks to start = 1, body = [(Add, "\r")]
+cc f5bf8b867da985f8b5b9249dbb8a4186ad224837f05efaeded8e35bfeb2ab5b6 # shrinks to lines = ["diff --git a/x b/x", "@@ -18446744073709551615 +18446744073709551615 @@", "--- a/x"]

@@ -40,7 +40,7 @@ fn find_syntax(lang: Option<&str>) -> &'static SyntaxReference {
 pub fn syntax_for_path(path: &str) -> &'static SyntaxReference {
     let ss = syntaxes();
     let name = path.rsplit('/').next().unwrap_or(path);
-    let ext = name.rsplit_once('.').map(|(_, e)| e).unwrap_or(name);
+    let ext = name.rsplit_once('.').map_or(name, |(_, e)| e);
     ss.find_syntax_by_extension(ext)
         .or_else(|| ss.find_syntax_by_extension(name))
         .unwrap_or_else(|| ss.find_syntax_plain_text())
@@ -83,15 +83,15 @@ impl SyntaxHighlighterAdapter for Highlighter {
     }
 
     fn write_pre_tag(&self, out: &mut dyn fmt::Write, attrs: HashMap<&'static str, Cow<'_, str>>) -> fmt::Result {
-        write_tag(out, "pre", attrs)
+        write_tag(out, "pre", &attrs)
     }
 
     fn write_code_tag(&self, out: &mut dyn fmt::Write, attrs: HashMap<&'static str, Cow<'_, str>>) -> fmt::Result {
-        write_tag(out, "code", attrs)
+        write_tag(out, "code", &attrs)
     }
 }
 
-fn write_tag(out: &mut dyn fmt::Write, tag: &str, attrs: HashMap<&'static str, Cow<'_, str>>) -> fmt::Result {
+fn write_tag(out: &mut dyn fmt::Write, tag: &str, attrs: &HashMap<&'static str, Cow<'_, str>>) -> fmt::Result {
     write!(out, "<{tag}")?;
     let mut keys: Vec<_> = attrs.keys().collect();
     keys.sort();
@@ -162,5 +162,65 @@ mod tests {
         assert_eq!(lines.len(), 2);
         assert!(!lines[1].contains("<b>") && lines[1].contains("&lt;"));
         assert!(syntax_css().contains("prefers-color-scheme"));
+    }
+
+    /// Every HTML tag in `html`, as (lowercase name, lowercase attribute text).
+    fn tags(html: &str) -> Vec<(String, String)> {
+        let mut out = vec![];
+        let mut rest = html;
+        while let Some(start) = rest.find('<') {
+            let Some(len) = rest[start..].find('>') else { break };
+            let inner = rest[start + 1..start + len].trim_start_matches('/').to_lowercase();
+            let (name, attrs) = inner.split_once(char::is_whitespace).unwrap_or((&inner, ""));
+            out.push((name.to_string(), attrs.to_string()));
+            rest = &rest[start + len + 1..];
+        }
+        out
+    }
+
+    // Property test: render() turns untrusted PR text into HTML for the
+    // webview. Whatever mix of XSS payloads and markdown proptest builds, the
+    // output must contain no script-capable tags, event handlers, or
+    // javascript:/vbscript:/data: URLs.
+    proptest::proptest! {
+        #[test]
+        fn rendered_markdown_has_no_script_vectors(
+            parts in proptest::collection::vec(
+                proptest::prop_oneof![
+                    proptest::strategy::Just("<script>alert(1)</script>"),
+                    proptest::strategy::Just("<img src=x onerror=alert(1)>"),
+                    proptest::strategy::Just("<svg onload=alert(1)>"),
+                    proptest::strategy::Just("<iframe src=javascript:alert(1)>"),
+                    proptest::strategy::Just("[x](javascript:alert(1))"),
+                    proptest::strategy::Just("[x](JaVaScRiPt:alert(1))"),
+                    proptest::strategy::Just("[x](vbscript:msgbox(1))"),
+                    proptest::strategy::Just("[x](data:text/html,<script>alert(1)</script>)"),
+                    proptest::strategy::Just("![i](javascript:alert(1))"),
+                    proptest::strategy::Just("<a href=\"javascript:alert(1)\">x</a>"),
+                    proptest::strategy::Just("[x](&#106;avascript:alert(1))"),
+                    proptest::strategy::Just("```html\n<script>x</script>\n```"),
+                    proptest::strategy::Just("`<b>`"),
+                    proptest::strategy::Just("\n\n"),
+                    proptest::strategy::Just(" "),
+                    proptest::strategy::Just("| a |\n|---|\n| <b> |"),
+                ],
+                1..10,
+            )
+        ) {
+            let html = render(&parts.concat());
+            for (name, attrs) in tags(&html) {
+                let bad_tag = ["script", "iframe", "svg", "object", "embed", "style", "math"];
+                proptest::prop_assert!(!bad_tag.contains(&name.as_str()), "<{name}> in {html}");
+                proptest::prop_assert!(!attrs.split_whitespace().any(|a| a.starts_with("on")), "handler in {html}");
+                for url_attr in ["href=\"", "src=\""] {
+                    if let Some(v) = attrs.split(url_attr).nth(1) {
+                        let v = v.trim_start();
+                        for scheme in ["javascript:", "vbscript:", "data:"] {
+                            proptest::prop_assert!(!v.starts_with(scheme), "{scheme} URL in {html}");
+                        }
+                    }
+                }
+            }
+        }
     }
 }

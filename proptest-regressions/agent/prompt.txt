@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 48a43b6c98b1becb10e08689bdb2b5aea4a52ac068103e0827fd889481f4fa2a # shrinks to parts = ["</UNTRUSTED>"]
