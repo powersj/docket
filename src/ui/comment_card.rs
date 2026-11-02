@@ -31,9 +31,12 @@ fn reanchor(c: &mut DraftComment, line: &DiffLine, shift: bool, diff: &DiffIndex
     let Some(n) = line.on(side) else { return };
     let a = &mut c.anchor;
     let same_side = a.side.as_deref().and_then(Side::parse) == Some(side);
-    if shift && a.subject_type == "line" && same_side && a.line.is_some() {
-        let cur_start = a.start_line.or(a.line).unwrap();
-        let cur_end = a.line.unwrap();
+    if shift
+        && a.subject_type == "line"
+        && same_side
+        && let Some(cur_end) = a.line
+    {
+        let cur_start = a.start_line.unwrap_or(cur_end);
         let (s, e) = (cur_start.min(n), cur_end.max(n));
         a.start_line = (s != e).then_some(s);
         a.line = Some(e);

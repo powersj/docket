@@ -10,6 +10,7 @@ use base64::Engine;
 use tokio::process::Command;
 
 use super::diff::DiffIndex;
+use crate::sync::MutexExt;
 
 /// The result of preparing a PR for a run.
 #[derive(Debug, Clone)]
@@ -33,7 +34,7 @@ impl Repos {
     }
 
     fn lock_for(&self, repo: &str) -> Arc<tokio::sync::Mutex<()>> {
-        self.locks.lock().unwrap().entry(repo.to_string()).or_default().clone()
+        self.locks.locked().entry(repo.to_string()).or_default().clone()
     }
 
     pub fn repo_dir(&self, repo: &str) -> PathBuf {
@@ -59,7 +60,9 @@ impl Repos {
         let git = Git { token: token.map(String::from) };
         let dir = self.repo_dir(repo);
         if !dir.join("HEAD").exists() && !dir.join(".git").exists() {
-            std::fs::create_dir_all(dir.parent().unwrap())?;
+            if let Some(parent) = dir.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
             let url = format!("https://github.com/{repo}.git");
             git.run(None, &["clone", "--filter=blob:none", "--no-checkout", "--bare", &url, path_str(&dir)?]).await?;
         }

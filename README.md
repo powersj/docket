@@ -141,13 +141,21 @@ Run `make setup` once after cloning. It installs the lint and test tools and
 enables a git pre-commit hook that runs `make lint`.
 
 ```sh
-make lint       # formatting, Clippy, doc warnings, cargo-deny, unused dependencies
+make lint       # formatting, Clippy, doc warnings, cargo-deny, unused dependencies, workflow audit
 make fmt        # fix formatting
 make test       # unit, property, and snapshot tests
+make ci         # everything CI runs: lint, test, the MSRV build, the binary size budget
 make coverage   # line coverage report in your browser
+make mutants    # mutation testing; slow, run it now and then
 ```
 
 Run `make lint` before every commit; the hook and CI both enforce it.
+
+The Rust version is pinned in `rust-toolchain.toml`. Bump it when a new stable
+comes out, every six weeks, in its own commit after `make ci` passes. The oldest
+supported Rust is `rust-version` in `Cargo.toml`, and CI builds with it.
+Dependabot opens grouped dependency and action updates weekly, and a weekly
+workflow builds against the newest dependencies on stable and beta Rust.
 
 Three more tests are opt-in:
 
@@ -155,3 +163,8 @@ Three more tests are opt-in:
 cargo test -- --ignored sandbox   # calls the real Claude CLI; costs a few cents
 SNAPSHOT_DIR=/tmp/snap cargo test -- --ignored ui_snapshot   # renders the UI to HTML
 ```
+
+## License
+
+Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
+[MIT license](LICENSE-MIT), at your option.

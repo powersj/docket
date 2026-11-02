@@ -9,6 +9,7 @@ mod repo;
 mod service;
 mod state;
 mod store;
+mod sync;
 mod ui;
 
 use dioxus::desktop::tao::dpi::{LogicalPosition, LogicalSize};
@@ -30,8 +31,21 @@ fn init_logging() -> Option<tracing_appender::non_blocking::WorkerGuard> {
     Some(guard)
 }
 
+/// Logs each panic, with a backtrace, to the app log before the default hook
+/// prints it. A Finder-launched app has no visible stderr, so without this a
+/// crash leaves no trace.
+fn install_panic_hook() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        tracing::error!(%info, %backtrace, "panic");
+        default(info);
+    }));
+}
+
 fn main() {
     let _guard = init_logging();
+    install_panic_hook();
     let store = match store::Store::open(&config::paths::db_file()) {
         Ok(s) => s,
         Err(e) => {
@@ -56,9 +70,14 @@ fn main() {
     }
     service::init_svc(store);
 
+    // Without menus the app still works, minus the shortcuts they carry.
+    let menu = ui::menus::build().unwrap_or_else(|e| {
+        tracing::error!("can't build the menus: {e}");
+        dioxus::desktop::muda::Menu::new()
+    });
     let cfg = Config::new()
         .with_window(wb)
-        .with_menu(ui::menus::build())
+        .with_menu(menu)
         .with_custom_head(ui::styles::head())
         .with_background_color((0, 0, 0, 0));
 

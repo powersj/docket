@@ -12,6 +12,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
+use crate::sync::MutexExt;
 use model::{PrDetail, PrSummary, RateLimit};
 use mutate::{PostedReview, ReviewPayload, WriteError, find_matching};
 
@@ -96,6 +97,10 @@ pub struct HttpGitHub {
 }
 
 impl HttpGitHub {
+    #[expect(
+        clippy::expect_used,
+        reason = "building fails only if the TLS backend can't start, and the app can't work without it"
+    )]
     pub fn new(login: &str) -> Self {
         let http = reqwest::Client::builder()
             .user_agent(concat!("docket/", env!("CARGO_PKG_VERSION")))
@@ -112,11 +117,11 @@ impl HttpGitHub {
     }
 
     async fn token(&self) -> Result<String> {
-        if let Some(t) = self.token.lock().unwrap().clone() {
+        if let Some(t) = self.token.locked().clone() {
             return Ok(t);
         }
         let t = gh_token(&self.login).await?;
-        *self.token.lock().unwrap() = Some(t.clone());
+        *self.token.locked() = Some(t.clone());
         Ok(t)
     }
 
@@ -138,7 +143,7 @@ impl HttpGitHub {
         }
         if let Some(rl) = query::parse_rate_limit(&v) {
             tracing::debug!(cost = rl.cost, remaining = rl.remaining, "GraphQL rate limit");
-            *self.rate.lock().unwrap() = Some(rl);
+            *self.rate.locked() = Some(rl);
         }
         match query::check_errors(&v) {
             Ok(()) => {}
@@ -311,11 +316,11 @@ impl GitHub for HttpGitHub {
     }
 
     fn rate_limit(&self) -> Option<RateLimit> {
-        *self.rate.lock().unwrap()
+        *self.rate.locked()
     }
 
     fn reset_token(&self) {
-        *self.token.lock().unwrap() = None;
+        *self.token.locked() = None;
     }
 }
 
@@ -384,27 +389,27 @@ pub mod fake {
             Ok(())
         }
         async fn list(&self, _s: &[Search]) -> Result<Vec<PrSummary>> {
-            Ok(self.prs.lock().unwrap().clone())
+            Ok(self.prs.locked().clone())
         }
         async fn detail(&self, repo: &str, number: u64, _r: bool) -> Result<PrDetail> {
-            self.details.lock().unwrap().get(&pr_id(repo, number)).cloned().context("no fixture")
+            self.details.locked().get(&pr_id(repo, number)).cloned().context("no fixture")
         }
         async fn add_label(&self, repo: &str, number: u64, label: &str) -> Result<(), WriteError> {
-            if let Some(status) = *self.label_error.lock().unwrap() {
+            if let Some(status) = *self.label_error.locked() {
                 return Err(WriteError::Forbidden { status, message: "nope".into() });
             }
-            self.labels_added.lock().unwrap().push((repo.into(), number, label.into()));
+            self.labels_added.locked().push((repo.into(), number, label.into()));
             Ok(())
         }
         async fn remove_label(&self, repo: &str, number: u64, label: &str) -> Result<(), WriteError> {
-            self.labels_removed.lock().unwrap().push((repo.into(), number, label.into()));
+            self.labels_removed.locked().push((repo.into(), number, label.into()));
             Ok(())
         }
         async fn post_review(&self, _repo: &str, _n: u64, review: &ReviewPayload) -> Result<PostedReview, WriteError> {
-            if let Some(e) = self.post_error.lock().unwrap().take() {
+            if let Some(e) = self.post_error.locked().take() {
                 return Err(e);
             }
-            self.posted.lock().unwrap().push(review.clone());
+            self.posted.locked().push(review.clone());
             Ok(PostedReview {
                 id: 99,
                 html_url: "https://github.com/x".into(),
@@ -414,10 +419,10 @@ pub mod fake {
             })
         }
         async fn list_reviews(&self, _repo: &str, _n: u64) -> Result<Vec<PostedReview>, WriteError> {
-            Ok(self.existing_reviews.lock().unwrap().clone())
+            Ok(self.existing_reviews.locked().clone())
         }
         async fn compare(&self, _repo: &str, _from: &str, _to: &str) -> Result<Compare> {
-            Ok(self.compare.lock().unwrap().clone())
+            Ok(self.compare.locked().clone())
         }
         fn rate_limit(&self) -> Option<RateLimit> {
             None
@@ -452,8 +457,8 @@ mod tests {
         };
 
         // The POST "fails" but actually landed: find it instead of reposting.
-        *gh.post_error.lock().unwrap() = Some(WriteError::Transport("timeout".into()));
-        *gh.existing_reviews.lock().unwrap() = vec![PostedReview {
+        *gh.post_error.locked() = Some(WriteError::Transport("timeout".into()));
+        *gh.existing_reviews.locked() = vec![PostedReview {
             id: 5,
             html_url: "u".into(),
             body: Some("hello".into()),
@@ -462,20 +467,20 @@ mod tests {
         }];
         let r = post_review_once(&gh, "o/a", 1, "me", &review).await.unwrap();
         assert_eq!(r.id, 5);
-        assert!(gh.posted.lock().unwrap().is_empty());
+        assert!(gh.posted.locked().is_empty());
 
         // It didn't land: the error comes back, nothing is reposted.
-        gh.existing_reviews.lock().unwrap().clear();
-        *gh.post_error.lock().unwrap() = Some(WriteError::Transport("timeout".into()));
+        gh.existing_reviews.locked().clear();
+        *gh.post_error.locked() = Some(WriteError::Transport("timeout".into()));
         assert!(post_review_once(&gh, "o/a", 1, "me", &review).await.is_err());
-        assert!(gh.posted.lock().unwrap().is_empty());
+        assert!(gh.posted.locked().is_empty());
 
         // 422s are reported as-is.
-        *gh.post_error.lock().unwrap() = Some(WriteError::Unprocessable("line must be part of the diff".into()));
+        *gh.post_error.locked() = Some(WriteError::Unprocessable("line must be part of the diff".into()));
         assert!(matches!(post_review_once(&gh, "o/a", 1, "me", &review).await, Err(WriteError::Unprocessable(_))));
 
         assert_eq!(post_review_once(&gh, "o/a", 1, "me", &review).await.unwrap().id, 99);
-        assert_eq!(gh.posted.lock().unwrap().len(), 1);
+        assert_eq!(gh.posted.locked().len(), 1);
     }
 
     #[test]

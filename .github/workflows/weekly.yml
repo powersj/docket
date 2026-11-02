@@ -1,0 +1,38 @@
+name: Weekly
+
+# Catches upstream breakage before it reaches a PR: the newest compatible
+# dependencies, built and tested on the latest stable and beta Rust.
+on:
+  schedule:
+    - cron: "0 14 * * 1" # Mondays, 14:00 UTC
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: -D warnings
+
+jobs:
+  latest:
+    name: latest deps, ${{ matrix.rust }}
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install ${{ matrix.rust }} --profile minimal --component clippy
+      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+        with:
+          tool: cargo-nextest,cargo-deny
+      - run: cargo update
+      - run: cargo +${{ matrix.rust }} clippy --all-targets --all-features -- -D warnings
+      - run: cargo +${{ matrix.rust }} nextest run
+      - run: cargo deny check

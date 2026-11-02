@@ -2,6 +2,11 @@
 name = "docket"
 version = "0.1.0"
 edition = "2024"
+# The oldest Rust that builds this: `Duration::from_mins` needs 1.91. CI checks
+# it, and clippy flags newer std APIs.
+rust-version = "1.91"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/powersj/docket"
 publish = false
 
 [dependencies]
@@ -25,7 +30,7 @@ serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 syntect = { version = "5.3.0", default-features = false, features = ["default-syntaxes", "default-themes", "html", "parsing", "regex-fancy"] }
 thiserror = "2.0.21"
-tokio = { version = "1.54.1", features = ["full"] }
+tokio = { version = "1.54.1", features = ["fs", "io-util", "macros", "process", "rt", "sync", "time"] }
 tokio-util = "0.7.20"
 toml = "1.1.8"
 toml_edit = "0.25.17"
@@ -47,6 +52,11 @@ pedantic = { level = "warn", priority = -1 }
 # Every unsafe block (the objc2 and libc calls) needs a `// SAFETY:` comment
 # saying why it is sound.
 undocumented_unsafe_blocks = "warn"
+# A failure in non-test code returns an error or is handled; it doesn't panic.
+# clippy.toml allows both in tests. Where a panic is the right call, say why in
+# an `#[expect(..., reason = "...")]`.
+unwrap_used = "warn"
+expect_used = "warn"
 # Pedantic lints that cost more churn than they return here.
 items_after_statements = "allow" # helper types next to the code that uses them are fine
 too_many_lines = "allow"         # long functions are split by judgment, not by count
@@ -61,6 +71,19 @@ similar_names = "allow"
 
 [lints.rustdoc]
 broken_intra_doc_links = "deny"
+
+# Panics unwind rather than abort: a panic in a spawned tokio task then ends
+# only that task, and the window stays up. `main` installs a hook that logs it.
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
+# A release build with symbols, for `samply record target/profiling/docket`.
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = false
 
 [dev-dependencies]
 dioxus-ssr = "0.7.10"

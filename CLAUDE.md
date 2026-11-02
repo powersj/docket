@@ -14,6 +14,10 @@ cannot merge.
   `#[expect(clippy::lint_name, reason = "...")]` on that item. Change crate-wide levels only
   in `[lints]` in `Cargo.toml`, with a comment saying why.
 - Every `unsafe` block needs a `// SAFETY:` comment saying why it is sound.
+- Non-test code doesn't `unwrap` or `expect` (`clippy::unwrap_used`/`expect_used`). Return
+  an error, handle the `None`, or use `#[expect(..., reason = "...")]` where a panic is right.
+  Lock std mutexes with `.locked()` and `.read_locked()`/`.write_locked()` from `src/sync.rs`.
+- Errors: `thiserror` enums where callers match on the kind, `anyhow` everywhere else.
 - Snapshot tests use `insta`. When output changes on purpose, run `cargo insta review` and
   check each diff before accepting it. `src/agent/snapshots/` holds the full review prompt.
 - Untrusted input boundaries (`markdown::render`, `prompt::fence`, `DiffIndex::parse`) have
@@ -22,6 +26,8 @@ cannot merge.
 ## Commands
 
 - `make test`: unit, property, and snapshot tests, through nextest (one process per test).
+- `make ci`: everything CI runs, including the MSRV build (`rust-version`) and the release
+  binary size budget (`MAX_BINARY_KB` in the Makefile).
 - `cargo test -- --ignored sandbox`: runs the real `claude` CLI to check the sandbox
   (costs a few cents). Run after changing `src/agent/sandbox.rs` or the CLI version.
 - `SNAPSHOT_DIR=/tmp/snap cargo test -- --ignored ui_snapshot`, then

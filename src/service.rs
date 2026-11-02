@@ -20,6 +20,7 @@ use crate::preflight::{self, Report};
 use crate::repo::{DiffIndex, Repos};
 use crate::state::{self, Event, Phase, PrRecord, Stage};
 use crate::store::{Draft, PostedRow, Store};
+use crate::sync::{MutexExt, RwLockExt};
 
 // ---------------------------------------------------------------------------
 // UI-facing state
@@ -237,36 +238,37 @@ pub fn init_svc(store: Store) {
     });
 }
 
+#[expect(clippy::expect_used, reason = "`main` calls `init_svc` before launching the UI, the only caller")]
 pub fn svc() -> &'static Svc {
     SVC.get().expect("services initialised")
 }
 
 impl Svc {
     pub fn gh(&self, cfg: &Config) -> Arc<dyn GitHub> {
-        if let Some((login, gh)) = self.gh.read().unwrap().as_ref()
+        if let Some((login, gh)) = self.gh.read_locked().as_ref()
             && *login == cfg.github.login
         {
             return gh.clone();
         }
         let gh: Arc<dyn GitHub> = Arc::new(HttpGitHub::new(&cfg.github.login));
-        *self.gh.write().unwrap() = Some((cfg.github.login.clone(), gh.clone()));
+        *self.gh.write_locked() = Some((cfg.github.login.clone(), gh.clone()));
         gh
     }
 
     pub fn repos(&self, cfg: &Config) -> Arc<Repos> {
         let root = cfg.worktree_root();
-        if let Some((r, repos)) = self.repos.read().unwrap().as_ref()
+        if let Some((r, repos)) = self.repos.read_locked().as_ref()
             && *r == root
         {
             return repos.clone();
         }
         let repos = Arc::new(Repos::new(root.clone()));
-        *self.repos.write().unwrap() = Some((root, repos.clone()));
+        *self.repos.write_locked() = Some((root, repos.clone()));
         repos
     }
 
     fn semaphore(&self, n: usize) -> Arc<Semaphore> {
-        let mut s = self.sem.lock().unwrap();
+        let mut s = self.sem.locked();
         if s.0 != n {
             *s = (n, Arc::new(Semaphore::new(n)));
         }
@@ -484,7 +486,7 @@ async fn refresh_list(mut ctx: Ctx, cfg: &Config) -> anyhow::Result<()> {
 }
 
 fn close_pr(mut ctx: Ctx, id: &str, st: PrState) {
-    if let Some(t) = svc().cancels.lock().unwrap().remove(id) {
+    if let Some(t) = svc().cancels.locked().remove(id) {
         t.cancel();
     }
     ctx.queue.write().retain(|q| q != id);
@@ -669,9 +671,13 @@ pub fn snooze(ctx: Ctx, id: &str, until: Time) {
 pub fn snooze_preset(preset: &str) -> Time {
     use chrono::{Datelike, Duration, Local, NaiveTime, TimeZone};
     let now = Local::now();
-    let nine = NaiveTime::from_hms_opt(9, 0, 0).unwrap();
+    // Evaluated at compile time, so the `None` arm can't be reached at run time.
+    const NINE: NaiveTime = match NaiveTime::from_hms_opt(9, 0, 0) {
+        Some(t) => t,
+        None => panic!("9:00 is a valid time"),
+    };
     let at = |days: i64| {
-        let d = (now + Duration::days(days)).date_naive().and_time(nine);
+        let d = (now + Duration::days(days)).date_naive().and_time(NINE);
         Local.from_local_datetime(&d).single().unwrap_or(now + Duration::days(days))
     };
     let t = match preset {
@@ -848,7 +854,7 @@ fn enqueue(mut ctx: Ctx, id: String, polish_only: bool) {
     ctx.queue.write().push(id.clone());
     let sem = svc().semaphore(cfg.max_concurrent_reviews);
     let token = CancellationToken::new();
-    svc().cancels.lock().unwrap().insert(id.clone(), token.clone());
+    svc().cancels.locked().insert(id.clone(), token.clone());
     spawn(async move {
         let permit = tokio::select! {
             p = sem.acquire_owned() => p.ok(),
@@ -863,7 +869,7 @@ fn enqueue(mut ctx: Ctx, id: String, polish_only: bool) {
         } else {
             review_and_polish(ctx, &id, &cfg, token).await
         };
-        svc().cancels.lock().unwrap().remove(&id);
+        svc().cancels.locked().remove(&id);
         if let Some(rv) = ctx.runs.write().get_mut(&id) {
             rv.active = false;
         }
@@ -890,7 +896,7 @@ pub fn queue_position(ctx: Ctx, id: &str) -> Option<usize> {
 }
 
 pub fn cancel(ctx: Ctx, id: &str) {
-    if let Some(t) = svc().cancels.lock().unwrap().remove(id) {
+    if let Some(t) = svc().cancels.locked().remove(id) {
         t.cancel();
     }
     // Waiting on the bot has no process to kill.

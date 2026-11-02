@@ -56,15 +56,15 @@ pub async fn run(
     let pid = child.id().and_then(|p| i32::try_from(p).ok());
 
     // The prompt goes on stdin, never argv.
-    let mut stdin = child.stdin.take().unwrap();
+    let mut stdin = child.stdin.take().ok_or_else(|| fail("no stdin pipe".into()))?;
     let prompt = spec.prompt.clone();
     tokio::spawn(async move {
         stdin.write_all(prompt.as_bytes()).await.ok();
         stdin.shutdown().await.ok();
     });
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child.stdout.take().ok_or_else(|| fail("no stdout pipe".into()))?;
+    let stderr = child.stderr.take().ok_or_else(|| fail("no stderr pipe".into()))?;
     let stderr_task = tokio::spawn(async move {
         let mut buf = String::new();
         let mut lines = BufReader::new(stderr).lines();

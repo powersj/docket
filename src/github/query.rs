@@ -89,7 +89,7 @@ pub fn detail_query(owner: &str, name: &str, number: u64) -> String {
 }
 
 fn json_str(s: &str) -> String {
-    serde_json::to_string(s).unwrap()
+    Value::from(s).to_string()
 }
 
 /// GraphQL top-level errors. SAML/SSO errors are recognisable by their text.

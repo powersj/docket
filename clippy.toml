@@ -1,2 +1,5 @@
 # Proper nouns that the `doc_markdown` lint would otherwise want in backticks.
 doc-valid-idents = ["AppKit", "WKWebView", ".."]
+# Tests can unwrap: a panic there is the failure report. See `[lints.clippy]` in Cargo.toml.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true

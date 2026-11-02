@@ -11,6 +11,7 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 
 use crate::github::model::{PrSummary, Time};
 use crate::state::{PrRecord, Stage};
+use crate::sync::MutexExt;
 pub use schema::*;
 
 #[derive(Clone)]
@@ -51,7 +52,7 @@ impl Store {
     }
 
     fn with<T>(&self, f: impl FnOnce(&Connection) -> rusqlite::Result<T>) -> Result<T> {
-        let c = self.conn.lock().unwrap();
+        let c = self.conn.locked();
         Ok(f(&c)?)
     }
 

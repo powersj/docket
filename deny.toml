@@ -36,10 +36,6 @@ allow = [
 confidence-threshold = 0.8
 unused-allowed-license = "allow"
 
-[licenses.private]
-# docket itself is `publish = false` and has no license of its own.
-ignore = true
-
 [bans]
 # Duplicate versions come from the Dioxus and image trees, not from us.
 multiple-versions = "allow"

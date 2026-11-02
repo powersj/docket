@@ -1,0 +1,7 @@
+# The Rust used for local and CI builds, so both see the same lints. Bump it
+# when a new stable comes out (every six weeks), in its own commit, after
+# `make ci` passes on it. The MSRV is `rust-version` in Cargo.toml.
+[toolchain]
+channel = "1.99.1"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

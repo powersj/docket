@@ -15,6 +15,8 @@ use objc2::MainThreadMarker;
 use objc2_app_kit::{NSEvent, NSEventMask};
 use serde::Deserialize;
 
+use crate::sync::MutexExt;
+
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq)]
 pub struct Rect {
     pub x: f64,
@@ -45,12 +47,12 @@ impl Regions {
 static REGIONS: Mutex<(Regions, f64)> = Mutex::new((Regions { drag: vec![], no_drag: vec![] }, 1.0));
 
 pub fn set_regions(r: Regions) {
-    REGIONS.lock().unwrap().0 = r;
+    REGIONS.locked().0 = r;
 }
 
 /// The webview zoom level: CSS pixels × zoom = window points.
 pub fn set_zoom(z: f64) {
-    REGIONS.lock().unwrap().1 = z;
+    REGIONS.locked().1 = z;
 }
 
 /// Reports drag regions (and the controls inside them) whenever layout
@@ -89,7 +91,7 @@ pub fn install() {
             let height = view.frame().size.height;
             let p = e.locationInWindow();
             let hit = {
-                let g = REGIONS.lock().unwrap();
+                let g = REGIONS.locked();
                 let zoom = if g.1 > 0.0 { g.1 } else { 1.0 };
                 // Window coordinates start at the bottom left; CSS at the top left.
                 g.0.hit(p.x / zoom, (height - p.y) / zoom)

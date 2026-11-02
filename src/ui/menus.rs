@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use dioxus::desktop::muda::accelerator::{Accelerator, Code, Modifiers};
-use dioxus::desktop::muda::{AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use dioxus::desktop::muda::{self, AboutMetadata, CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 
 use crate::state::Stage;
 
@@ -33,7 +33,7 @@ fn check(id: &'static str, text: &str, a: Option<Accelerator>) -> CheckMenuItem 
     i
 }
 
-pub fn build() -> Menu {
+pub fn build() -> Result<Menu, muda::Error> {
     let menu = Menu::new();
     let sep = PredefinedMenuItem::separator;
 
@@ -60,8 +60,7 @@ pub fn build() -> Menu {
             &sep(),
             &PredefinedMenuItem::quit(None),
         ],
-    )
-    .unwrap();
+    )?;
 
     let edit = Submenu::with_items(
         "Edit",
@@ -75,8 +74,7 @@ pub fn build() -> Menu {
             &PredefinedMenuItem::paste(None),
             &PredefinedMenuItem::select_all(None),
         ],
-    )
-    .unwrap();
+    )?;
 
     let view = Submenu::with_items(
         "View",
@@ -100,8 +98,7 @@ pub fn build() -> Menu {
             &sep(),
             &PredefinedMenuItem::fullscreen(None),
         ],
-    )
-    .unwrap();
+    )?;
 
     let snooze = Submenu::with_items(
         "Snooze",
@@ -112,8 +109,7 @@ pub fn build() -> Menu {
             &item("snooze_week", "Next Week", None),
             &item("snooze_custom", "Custom…", None),
         ],
-    )
-    .unwrap();
+    )?;
 
     let pr = Submenu::with_items(
         "PR",
@@ -130,8 +126,7 @@ pub fn build() -> Menu {
             &sep(),
             &item("open", "Open in GitHub", None),
         ],
-    )
-    .unwrap();
+    )?;
 
     let window = Submenu::with_items(
         "Window",
@@ -142,15 +137,14 @@ pub fn build() -> Menu {
             &sep(),
             &PredefinedMenuItem::bring_all_to_front(None),
         ],
-    )
-    .unwrap();
+    )?;
     window.set_as_windows_menu_for_nsapp();
 
-    let help = Submenu::with_items("Help", true, &[&item("shortcuts", "Keyboard Shortcuts", None)]).unwrap();
+    let help = Submenu::with_items("Help", true, &[&item("shortcuts", "Keyboard Shortcuts", None)])?;
     help.set_as_help_menu_for_nsapp();
 
-    menu.append_items(&[&app, &edit, &view, &pr, &window, &help]).unwrap();
-    menu
+    menu.append_items(&[&app, &edit, &view, &pr, &window, &help])?;
+    Ok(menu)
 }
 
 fn set(id: &str, enabled: bool) {

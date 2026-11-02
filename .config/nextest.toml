@@ -1,0 +1,9 @@
+# Flaky tests: no automatic retries, which would hide them. Fix a flaky test,
+# or mark it #[ignore] with a comment saying why, until it is fixed.
+[profile.default]
+retries = 0
+slow-timeout = { period = "30s", terminate-after = 4 }
+
+# CI sets NEXTEST_PROFILE=ci: run every test, so one failure doesn't hide others.
+[profile.ci]
+fail-fast = false

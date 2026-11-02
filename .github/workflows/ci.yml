@@ -5,18 +5,99 @@ on:
     branches: [master]
   pull_request:
 
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: -D warnings
+  NEXTEST_PROFILE: ci
+
+# Each job runs one or more Makefile targets, so `make ci` runs the same checks
+# locally. The quick checks run first; the macOS builds wait on them.
 jobs:
-  rust:
-    # The app links AppKit, so it only builds on macOS.
-    runs-on: macos-latest
+  quick:
+    name: fmt, deny, machete, zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          components: clippy, rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - uses: taiki-e/install-action@v2
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
         with:
-          tool: cargo-nextest,cargo-deny,cargo-machete
-      - run: make lint
+          tool: cargo-deny,cargo-machete,zizmor
+      - run: make fmt-check deny machete zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # The app links AppKit, so everything that compiles it runs on macOS.
+  clippy:
+    name: clippy, docs
+    needs: quick
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: make clippy doc
+
+  test:
+    needs: quick
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - uses: taiki-e/install-action@183e4297cca2404691e9380e1307288dced5c82a # v2.87.25
+        with:
+          tool: cargo-nextest
       - run: make test
+
+  msrv:
+    needs: quick
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: make msrv
+
+  size:
+    name: binary size
+    needs: quick
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - run: make size
